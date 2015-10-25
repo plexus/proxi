@@ -1,24 +1,52 @@
 module Proxi
+
+  # Public: A bidirectional pipe between two sockets
+  #
+  # A Proxi::Socket takes an incoming request, and will initiate an outgoing
+  # request, after which it forwards all traffic in both directions.
+  #
+  # Creating the outgoing request is delegated to a Proxi::SocketFactory. The
+  # reason being that the type of socket can vary (TCPSocket, SSLSocket), or
+  # there might be some logic involved to dispatch to the correct host, e.g.
+  # based on the HTTP Host header (cfr. Proxi::HTTPHostSocketFactory).
+  #
+  # A socket factory can subscribe to events to make informed decision, e.g. to
+  # inspect incoming data for HTTP headers.
+  #
+  # Proxi::Connection broadcasts the following events:
+  #
+  # - start_connection(Proxi::Connection)
+  # - end_connection(Proxi::Connection)
+  # - main_loop_error(Proxi::Connection, Exception)
+  # - data_in(Proxi::Connection, Array)
+  # - data_out(Proxi::Connection, Array)
   class Connection
     include Wisper::Publisher
 
-    attr_reader :in_socket, :thread, :remote_host, :remote_port
+    attr_reader :in_socket, :thread
 
-    def initialize(in_socket, remote_host, remote_port)
+    def initialize(in_socket, socket_factory, max_block_size: 4096)
       @in_socket = in_socket
-      @remote_host, @remote_port = remote_host, remote_port
-      @state = :new
+      @socket_factory = socket_factory
+      @max_block_size = max_block_size
     end
 
+    # Internal: start the connection handler thread
+    #
+    # Called by the server, this spawns a new Thread that handles the forwarding
+    # of data.
     def call
       broadcast(:start_connection, self)
       @thread = Thread.new { proxy_loop }
+      self
     end
 
+    # Internal: Is the connection handling thread still alive?
     def alive?
       thread.alive?
     end
 
+    # Internal: Join the connection handling thread
     def join_thread
       thread.join
     end
@@ -26,11 +54,12 @@ module Proxi
     private
 
     def out_socket
-      @out_socket ||= TCPSocket.new(remote_host, remote_port)
+      @out_socket ||= @socket_factory.call
     end
 
     def proxy_loop
       begin
+        handle_socket(in_socket)
         loop do
           begin
             ready_sockets.each do |socket|
@@ -55,7 +84,7 @@ module Proxi
     end
 
     def handle_socket(socket)
-      data = socket.readpartial(4096)
+      data = socket.readpartial(@max_block_size)
 
       if socket == in_socket
         broadcast(:data_in, self, data)
@@ -69,67 +98,4 @@ module Proxi
     end
   end
 
-  module SSLConnection
-    def connect
-      @out_socket = OpenSSL::SSL::SSLSocket.new(super)
-      @out_socket.connect
-    end
-  end
-
-  class HTTPConnection < Connection
-    def initialize(in_socket, host_to_ip)
-      @in_socket, @host_to_ip = in_socket, host_to_ip
-      @new = true
-    end
-
-    def handle_socket(socket)
-      data = socket.readpartial(4096)
-
-      if socket == in_socket
-        broadcast(:data_in, self, data)
-
-        if @new
-          @first_packet = data
-          @new = false
-        end
-
-        out_socket.write data
-        out_socket.flush
-      else
-        broadcast(:data_out, self, data)
-        in_socket.write data
-        in_socket.flush
-      end
-    end
-
-    def ready_sockets
-      if @new
-        sockets = [in_socket]
-      else
-        sockets = [in_socket, out_socket]
-      end
-      IO.select(sockets).first
-    end
-
-    def out_socket
-      host, port = @host_to_ip.fetch(headers["host"]).split(':')
-      port ||= 80
-      @out_socket ||= TCPSocket.new(host, port.to_i)
-    end
-
-    def headers
-      Hash[
-        @first_packet
-        .sub(/\r\n\r\n.*/m, '')
-        .each_line
-        .drop(1) # GET / HTTP/1.1
-        .map do |line|
-          k,v = line.split(':', 2)
-          [k.downcase, v.strip].tap do |header|
-            broadcast(:header, self, *header)
-          end
-        end
-      ]
-    end
-  end
 end
