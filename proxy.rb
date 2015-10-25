@@ -1,5 +1,12 @@
 #!/usr/bin/ruby
 
+# This is my original proxy.rb script that served me well for many years, before
+# I decided to clean it up and turn it into a gem.
+#
+# Have a look under lib/ for the much improved version. Leaving it here just a
+# little longer for reference. There are still a few features that haven't been
+# ported yet.
+
 require 'socket'
 require 'thread'
 require 'optparse'
