@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>proxi</title>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+    <link rel="stylesheet" media="all" href="http://jashkenas.github.com/docco/resources/parallel/public/stylesheets/normalize.css">
+    <link rel="stylesheet" media="all" href="http://jashkenas.github.com/docco/resources/parallel/docco.css">
+    <link rel="stylesheet" media="all" href="http://billiam.github.com/rocco/resources/highlight.css">
+</head>
+<body>
+  <div id='container'>
+    <div id="background"></div>
+  <ul class="sections">
+    <li id="title">
+      <div class="annotation">
+        <h1>proxi</h1>
+      </div>
+    </li>
+    <li id="section-1">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-1">&#182;</a>
+        </div>
+        
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="nb">require</span> <span class="s1">'socket'</span>
+<span class="nb">require</span> <span class="s1">'thread'</span>
+<span class="nb">require</span> <span class="s1">'openssl'</span>
+
+<span class="nb">require</span> <span class="s1">'wisper'</span></pre></div>
+      </div>
+    </li>
+    <li id="section-2">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-2">&#182;</a>
+        </div>
+        <p><a href="https://github.com/plexus/proxi">Proxi</a> gives you flexible TCP/HTTP proxy
+servers for use during development.</p>
+
+<p>This can be useful when developing against external services, to see what goes
+over the wire, capture responses, or simulate timeouts.</p>
+
+<p>There are three main concepts in Proxi, <code>Server</code>, <code>Connection</code>, and <code>Socket</code>.
+A server listens locally for incoming requests. When it receives a request, it
+establishes a <code>Connection</code>, which opens a socket to the remote host, and then
+acts as a bidirectional pipe between the incoming and outgoing network
+sockets.</p>
+
+<p>To allow for multiple ways to handle the proxying, and multiple strategies for
+making remote connections, the <code>Server</code> does not create <code>Connections</code>
+directly, but instead delegates this to a &quot;connection factory&quot;.</p>
+
+<p>A <code>Connection</code> in turn delegates how to open a remote socket to a &quot;socket
+factory&quot;.</p>
+
+<p>Both Servers and Connections are observable, they emit events that objects can
+subscribe to.</p>
+
+<p>To use Proxi, hook up these factories, and register event listeners, and then
+start the server.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="k">module</span> <span class="nn">Proxi</span></pre></div>
+      </div>
+    </li>
+    <li id="section-Basic_examples">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Basic_examples">&#182;</a>
+        </div>
+        <h2>Basic examples</h2>
+
+<p>These are provided for basic use cases, and as a starting point for more
+complex uses. They return the server instance, call <code>#call</code> to start the
+server, or use <code>on</code> or <code>subscribe</code> to listen to events.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre></pre></div>
+      </div>
+    </li>
+    <li id="section-4">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-4">&#182;</a>
+        </div>
+        <p>With <code>Proxy.tcp_proxy</code> you get basic proxying from a local port to a remote
+host and port, all bytes are simply forwarded without caring about their
+contents.</p>
+
+<p>For example:</p>
+
+<pre><code>Proxi.tcp_proxy(3000, &#39;foo.example.com&#39;, 4000).call
+</code></pre>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">tcp_proxy</span><span class="p">(</span><span class="n">local_port</span><span class="p">,</span> <span class="n">remote_host</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">)</span>
+    <span class="n">reporter</span> <span class="o">=</span> <span class="no">ConsoleReporter</span><span class="p">.</span><span class="nf">new</span>
+
+    <span class="n">connection_factory</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">in_socket</span> <span class="k">do</span>
+      <span class="n">socket_factory</span> <span class="o">=</span> <span class="no">TCPSocketFactory</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">remote_host</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">)</span>
+      <span class="no">Connection</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">in_socket</span><span class="p">,</span> <span class="n">socket_factory</span><span class="p">).</span><span class="nf">subscribe</span><span class="p">(</span><span class="n">reporter</span><span class="p">)</span>
+    <span class="k">end</span>
+
+    <span class="no">Server</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">local_port</span><span class="p">,</span> <span class="n">connection_factory</span><span class="p">)</span>
+  <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-5">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-5">&#182;</a>
+        </div>
+        <p><code>Proxi.http_host_proxy</code> allows proxying to multiple remote hosts, based on
+the HTTP <code>Host:</code> header. To use it, gather the IP addresses that correspond
+to each domain name, and provide this name-to-ip mapping to
+<code>http_host_proxy</code>. Now configure these domain names in <code>/etc/hosts</code> to point
+to the local host, so Proxi can intercept traffic intended for these
+domains.</p>
+
+<p>For example</p>
+
+<pre><code>Proxi.http_host_proxy(80, {&#39;foo.example.org&#39; =&gt; &#39;10.10.0.1&#39;}).call
+</code></pre>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">http_host_proxy</span><span class="p">(</span><span class="n">local_port</span><span class="p">,</span> <span class="n">host_mapping</span><span class="p">)</span>
+    <span class="n">reporter</span> <span class="o">=</span> <span class="no">ConsoleReporter</span><span class="p">.</span><span class="nf">new</span>
+
+    <span class="n">connection_factory</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">in_socket</span> <span class="k">do</span>
+      <span class="n">socket_factory</span> <span class="o">=</span> <span class="no">HTTPHostSocketFactory</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">host_mapping</span><span class="p">)</span>
+      <span class="no">Connection</span>
+        <span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">in_socket</span><span class="p">,</span> <span class="n">socket_factory</span><span class="p">)</span>
+        <span class="p">.</span><span class="nf">subscribe</span><span class="p">(</span><span class="n">socket_factory</span><span class="p">,</span> <span class="ss">on: :data_in</span><span class="p">)</span>
+        <span class="p">.</span><span class="nf">subscribe</span><span class="p">(</span><span class="n">reporter</span><span class="p">)</span>
+    <span class="k">end</span>
+
+    <span class="no">Server</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">local_port</span><span class="p">,</span> <span class="n">connection_factory</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="nb">require_relative</span> <span class="s1">'proxi/server'</span>
+<span class="nb">require_relative</span> <span class="s1">'proxi/connection'</span>
+<span class="nb">require_relative</span> <span class="s1">'proxi/socket_factory'</span>
+<span class="nb">require_relative</span> <span class="s1">'proxi/reporting'</span>
+<span class="nb">require_relative</span> <span class="s1">'proxi/listeners'</span></pre></div>
+      </div>
+    </li>
+    <li id="section-Proxi::Server">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Proxi::Server">&#182;</a>
+        </div>
+        <h2>Proxi::Server</h2>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="k">module</span> <span class="nn">Proxi</span></pre></div>
+      </div>
+    </li>
+    <li id="section-7">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-7">&#182;</a>
+        </div>
+        <p><code>Proxi::Server</code> accepts TCP requests, and forwards them, by creating an
+outbound connection and forwarding traffic in both directions.</p>
+
+<p>The destination of the outbound connection, and the forwarding of data, is
+handled by a <code>Proxi::Connection</code>, created by a factory object, which can be a
+lambda.</p>
+
+<p>Start listening for connections by calling #call.</p>
+
+<p><code>Proxi::Server</code> broadcasts the following events:</p>
+
+<ul>
+<li><code>new_connection(Proxi::Connection)</code></li>
+<li><code>dead_connection(Proxi::Connection)</code></li>
+</ul>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">Server</span>
+    <span class="kp">include</span> <span class="no">Wisper</span><span class="o">::</span><span class="no">Publisher</span></pre></div>
+      </div>
+    </li>
+    <li id="section-8">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-8">&#182;</a>
+        </div>
+        <p>Public: Initialize a Server</p>
+
+<p>listen<em>port        - The String or Integer of the port to listen to for
+                     incoming connections
+connection</em>factory - Implements #call(in<em>socket) and returns a
+                     Proxi::Connection
+max</em>connections    - The maximum amount of parallel connections to handle
+                     at once</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">listen_port</span><span class="p">,</span> <span class="n">connection_factory</span><span class="p">,</span> <span class="ss">max_connections: </span><span class="mi">5</span><span class="p">)</span>
+      <span class="vi">@listen_port</span> <span class="o">=</span> <span class="n">listen_port</span>
+      <span class="vi">@connection_factory</span> <span class="o">=</span> <span class="n">connection_factory</span>
+      <span class="vi">@max_connections</span> <span class="o">=</span> <span class="mi">5</span>
+      <span class="vi">@connections</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-9">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-9">&#182;</a>
+        </div>
+        <p>Public: Start the server</p>
+
+<p>Start accepting and forwarding requests</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>    <span class="k">def</span> <span class="nf">call</span>
+      <span class="vi">@server</span> <span class="o">=</span> <span class="no">TCPServer</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="s1">'localhost'</span><span class="p">,</span> <span class="vi">@listen_port</span><span class="p">)</span>
+
+      <span class="k">until</span> <span class="vi">@server</span><span class="p">.</span><span class="nf">closed?</span>
+        <span class="n">in_socket</span> <span class="o">=</span> <span class="vi">@server</span><span class="p">.</span><span class="nf">accept</span>
+        <span class="n">connection</span> <span class="o">=</span> <span class="vi">@connection_factory</span><span class="p">.</span><span class="nf">call</span><span class="p">(</span><span class="n">in_socket</span><span class="p">)</span>
+
+        <span class="n">broadcast</span><span class="p">(</span><span class="ss">:new_connection</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+
+        <span class="vi">@connections</span><span class="p">.</span><span class="nf">push</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+
+        <span class="n">connection</span><span class="p">.</span><span class="nf">call</span> <span class="c1"># spawns a new thread that handles proxying</span>
+
+        <span class="n">reap_connections</span>
+        <span class="k">while</span> <span class="vi">@connections</span><span class="p">.</span><span class="nf">size</span> <span class="o">&gt;=</span> <span class="vi">@max_connections</span>
+          <span class="nb">sleep</span> <span class="mi">1</span>
+          <span class="n">reap_connections</span>
+        <span class="k">end</span>
+      <span class="k">end</span>
+    <span class="k">ensure</span>
+      <span class="n">close</span> <span class="k">unless</span> <span class="vi">@server</span><span class="p">.</span><span class="nf">closed?</span>
+    <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-10">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-10">&#182;</a>
+        </div>
+        <p>Public: close the TCP server socket</p>
+
+<p>Included for completeness, note that if the proxy server is active it will
+likely be blocking on TCPServer#accept, and the server port will stay open
+until it has accepted one final request.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>    <span class="k">def</span> <span class="nf">close</span>
+      <span class="vi">@server</span><span class="p">.</span><span class="nf">close</span>
+    <span class="k">end</span>
+
+    <span class="kp">private</span>
+
+    <span class="k">def</span> <span class="nf">reap_connections</span>
+      <span class="vi">@connections</span> <span class="o">=</span> <span class="vi">@connections</span><span class="p">.</span><span class="nf">select</span> <span class="k">do</span> <span class="o">|</span><span class="n">conn</span><span class="o">|</span>
+        <span class="k">if</span> <span class="n">conn</span><span class="p">.</span><span class="nf">alive?</span>
+          <span class="kp">true</span>
+        <span class="k">else</span>
+          <span class="n">broadcast</span><span class="p">(</span><span class="ss">:dead_connection</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+          <span class="n">conn</span><span class="p">.</span><span class="nf">join_thread</span>
+          <span class="kp">false</span>
+        <span class="k">end</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-Proxi::Connection">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Proxi::Connection">&#182;</a>
+        </div>
+        <h2>Proxi::Connection</h2>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="k">module</span> <span class="nn">Proxi</span></pre></div>
+      </div>
+    </li>
+    <li id="section-12">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-12">&#182;</a>
+        </div>
+        <p>A <code>Connection</code> is a bidirectional pipe between two sockets.</p>
+
+<p>The proxy server hands it the socket for the incoming request from, and
+<code>Connection</code> then initiates an outgoing request, after which it forwards all
+traffic in both directions.</p>
+
+<p>Creating the outgoing request is delegated to a <code>Proxi::SocketFactory</code>. The
+reason being that the type of socket can vary (<code>TCPSocket</code>, <code>SSLSocket</code>), or
+there might be some logic involved to dispatch to the correct host, e.g.
+based on the HTTP Host header (cfr. <code>Proxi::HTTPHostSocketFactory</code>).</p>
+
+<p>A socket factory can subscribe to events to make informed decision, e.g. to
+inspect incoming data for HTTP headers.</p>
+
+<p>Proxi::Connection broadcasts the following events:</p>
+
+<ul>
+<li><code>start_connection(Proxi::Connection)</code></li>
+<li><code>end_connection(Proxi::Connection)</code></li>
+<li><code>main_loop_error(Proxi::Connection, Exception)</code></li>
+<li><code>data_in(Proxi::Connection, Array)</code></li>
+<li><code>data_out(Proxi::Connection, Array)</code></li>
+</ul>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">Connection</span>
+    <span class="kp">include</span> <span class="no">Wisper</span><span class="o">::</span><span class="no">Publisher</span>
+
+    <span class="kp">attr_reader</span> <span class="ss">:in_socket</span><span class="p">,</span> <span class="ss">:thread</span>
+
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">in_socket</span><span class="p">,</span> <span class="n">socket_factory</span><span class="p">,</span> <span class="ss">max_block_size: </span><span class="mi">4096</span><span class="p">)</span>
+      <span class="vi">@in_socket</span> <span class="o">=</span> <span class="n">in_socket</span>
+      <span class="vi">@socket_factory</span> <span class="o">=</span> <span class="n">socket_factory</span>
+      <span class="vi">@max_block_size</span> <span class="o">=</span> <span class="n">max_block_size</span>
+    <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-13">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-13">&#182;</a>
+        </div>
+        <p><code>Connection#call</code> starts the connection handler thread. This is called by
+the server, and spawns a new Thread that handles the forwarding of data.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>    <span class="k">def</span> <span class="nf">call</span>
+      <span class="n">broadcast</span><span class="p">(</span><span class="ss">:start_connection</span><span class="p">,</span> <span class="nb">self</span><span class="p">)</span>
+      <span class="vi">@thread</span> <span class="o">=</span> <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="p">{</span> <span class="n">proxy_loop</span> <span class="p">}</span>
+      <span class="nb">self</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">alive?</span>
+      <span class="n">thread</span><span class="p">.</span><span class="nf">alive?</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">join_thread</span>
+      <span class="n">thread</span><span class="p">.</span><span class="nf">join</span>
+    <span class="k">end</span>
+
+    <span class="kp">private</span>
+
+    <span class="k">def</span> <span class="nf">out_socket</span>
+      <span class="vi">@out_socket</span> <span class="o">||=</span> <span class="vi">@socket_factory</span><span class="p">.</span><span class="nf">call</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">proxy_loop</span>
+      <span class="k">begin</span>
+        <span class="n">handle_socket</span><span class="p">(</span><span class="n">in_socket</span><span class="p">)</span>
+        <span class="kp">loop</span> <span class="k">do</span>
+          <span class="k">begin</span>
+            <span class="n">ready_sockets</span><span class="p">.</span><span class="nf">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">socket</span><span class="o">|</span>
+              <span class="n">handle_socket</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+            <span class="k">end</span>
+          <span class="k">rescue</span> <span class="no">EOFError</span>
+            <span class="k">break</span>
+          <span class="k">end</span>
+        <span class="k">end</span>
+      <span class="k">rescue</span> <span class="no">Object</span> <span class="o">=&gt;</span> <span class="n">e</span>
+        <span class="n">broadcast</span><span class="p">(</span><span class="ss">:main_loop_error</span><span class="p">,</span> <span class="nb">self</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">raise</span>
+      <span class="k">ensure</span>
+        <span class="n">in_socket</span><span class="p">.</span><span class="nf">close</span> <span class="k">rescue</span> <span class="no">StandardError</span>
+        <span class="n">out_socket</span><span class="p">.</span><span class="nf">close</span> <span class="k">rescue</span> <span class="no">StandardError</span>
+        <span class="n">broadcast</span><span class="p">(</span><span class="ss">:end_connection</span><span class="p">,</span> <span class="nb">self</span><span class="p">)</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">ready_sockets</span>
+      <span class="no">IO</span><span class="p">.</span><span class="nf">select</span><span class="p">([</span><span class="n">in_socket</span><span class="p">,</span> <span class="n">out_socket</span><span class="p">]).</span><span class="nf">first</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">handle_socket</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="n">socket</span><span class="p">.</span><span class="nf">readpartial</span><span class="p">(</span><span class="vi">@max_block_size</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="n">socket</span> <span class="o">==</span> <span class="n">in_socket</span>
+        <span class="n">broadcast</span><span class="p">(</span><span class="ss">:data_in</span><span class="p">,</span> <span class="nb">self</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="n">out_socket</span><span class="p">.</span><span class="nf">write</span> <span class="n">data</span>
+        <span class="n">out_socket</span><span class="p">.</span><span class="nf">flush</span>
+      <span class="k">else</span>
+        <span class="n">broadcast</span><span class="p">(</span><span class="ss">:data_out</span><span class="p">,</span> <span class="nb">self</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="n">in_socket</span><span class="p">.</span><span class="nf">write</span> <span class="n">data</span>
+        <span class="n">in_socket</span><span class="p">.</span><span class="nf">flush</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+<span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-Socket_factories">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Socket_factories">&#182;</a>
+        </div>
+        <h2>Socket factories</h2>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="k">module</span> <span class="nn">Proxi</span></pre></div>
+      </div>
+    </li>
+    <li id="section-TCPSocketFactory">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-TCPSocketFactory">&#182;</a>
+        </div>
+        <h3>TCPSocketFactory</h3>
+
+<p>This is the most vanilla type of socket factory.</p>
+
+<p>Suitable when all requests need to be forwarded to the same host and port.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">TCPSocketFactory</span>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">remote_host</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">)</span>
+      <span class="vi">@remote_host</span><span class="p">,</span> <span class="vi">@remote_port</span> <span class="o">=</span> <span class="n">remote_host</span><span class="p">,</span> <span class="n">remote_port</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">call</span>
+      <span class="no">TCPSocket</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="vi">@remote_host</span><span class="p">,</span> <span class="vi">@remote_port</span><span class="p">)</span>
+    <span class="k">end</span>
+  <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-SSLSocketFactory">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-SSLSocketFactory">&#182;</a>
+        </div>
+        <h3>SSLSocketFactory</h3>
+
+<p>This will set up an encrypted (SSL, https) connection to the target host.
+This way the proxy server communicates <em>unencrypted</em> locally, but
+encrypts/decrypts communication with the remote host.</p>
+
+<p>If you want to forward SSL connections as-is, use a <code>TCPSocketFactory</code>, in
+that case however you won&#39;t be able to inspect any data passing through,
+since it will be encrypted.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">SSLSocketFactory</span> <span class="o">&lt;</span> <span class="no">TCPSocketFactory</span>
+    <span class="k">def</span> <span class="nf">call</span>
+      <span class="no">OpenSSL</span><span class="o">::</span><span class="no">SSL</span><span class="o">::</span><span class="no">SSLSocket</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="k">super</span><span class="p">).</span><span class="nf">tap</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:connect</span><span class="p">)</span>
+    <span class="k">end</span>
+  <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-HTTPHostSocketFactory">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-HTTPHostSocketFactory">&#182;</a>
+        </div>
+        <h3>HTTPHostSocketFactory</h3>
+
+<p>Dispatches HTTP traffic to multiple hosts, based on the HTTP <code>Host:</code> header.</p>
+
+<p>HTTPHostSocketFactory expects to receive data events from the connection, so
+make sure you subscribe it to connection events. (see <code>Proxi.http_proxy</code> for
+an example).</p>
+
+<p>To use this effectively, configure your local <code>/etc/hosts</code> so the relevant
+domains point to localhost. That way the proxy will be able to intercept
+them.</p>
+
+<p>This class is single use only! Create a new instance for each <code>Proxi::Connection</code>.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">HTTPHostSocketFactory</span></pre></div>
+      </div>
+    </li>
+    <li id="section-18">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-18">&#182;</a>
+        </div>
+        <p>Initialize a HTTPHostSocketFactory</p>
+
+<p><code>host_mapping</code> - A Hash mapping hostnames to IP addresses, and, optionally, ports</p>
+
+<p>For example:</p>
+
+<pre><code>HTTPHostSocketFactory.new(
+  &#39;foo.example.com&#39; =&gt; &#39;10.10.10.1:8080&#39;,
+  &#39;bar.example.com&#39; =&gt; &#39;10.10.10.2:8080&#39;
+)
+</code></pre>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">host_mapping</span><span class="p">)</span>
+      <span class="vi">@host_mapping</span> <span class="o">=</span> <span class="n">host_mapping</span>
+    <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-19">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-19">&#182;</a>
+        </div>
+        <p>This is an event listener, it will be broadcast by the <code>Connection</code> whenever
+it gets new request data. We capture the first packet, assuming it
+contains the HTTP headers.</p>
+
+<p><code>Connection</code> will only request an outgoing socket from us (call <code>#call</code>)
+after it received the initial request payload.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>    <span class="k">def</span> <span class="nf">data_in</span><span class="p">(</span><span class="n">connection</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+      <span class="vi">@first_packet</span> <span class="o">||=</span> <span class="n">data</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">call</span>
+      <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="vi">@host_to_ip</span><span class="p">.</span><span class="nf">fetch</span><span class="p">(</span><span class="n">headers</span><span class="p">[</span><span class="s2">"host"</span><span class="p">]).</span><span class="nf">split</span><span class="p">(</span><span class="s1">':'</span><span class="p">)</span>
+      <span class="n">port</span> <span class="o">||=</span> <span class="mi">80</span>
+      <span class="no">TCPSocket</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">.</span><span class="nf">to_i</span><span class="p">)</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">headers</span>
+      <span class="no">Hash</span><span class="p">[</span>
+        <span class="vi">@first_packet</span>
+        <span class="p">.</span><span class="nf">sub</span><span class="p">(</span><span class="sr">/\r\n\r\n.*/m</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span>
+        <span class="p">.</span><span class="nf">each_line</span>
+        <span class="p">.</span><span class="nf">drop</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># GET / HTTP/1.1</span>
+        <span class="p">.</span><span class="nf">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
+          <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="o">=</span> <span class="n">line</span><span class="p">.</span><span class="nf">split</span><span class="p">(</span><span class="s1">':'</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+          <span class="p">[</span><span class="n">k</span><span class="p">.</span><span class="nf">downcase</span><span class="p">,</span> <span class="n">v</span><span class="p">.</span><span class="nf">strip</span><span class="p">]</span>
+        <span class="k">end</span>
+      <span class="p">]</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-Reporting">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Reporting">&#182;</a>
+        </div>
+        <h3>Reporting</h3>
+
+<p>Proxi&#39;s server and connection classes don&#39;t have any logging or UI
+capabilities built in, but they broadcast events that we can listen to to perform these tasks.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="k">module</span> <span class="nn">Proxi</span></pre></div>
+      </div>
+    </li>
+    <li id="section-21">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-21">&#182;</a>
+        </div>
+        <p>This is a very basic console reporter to see what&#39;s happening</p>
+
+<p>Subscribe to connection events, and you will see output that looks like this</p>
+
+<pre><code>1. +++
+1. &lt; 91
+2. +++
+3. +++
+2. &lt; 91
+3. &lt; 91
+1. &gt; 4096
+1. &gt; 3422
+1. ---
+</code></pre>
+
+<p>Each connection gets a unique incremental number assigned, followed by:</p>
+
+<ul>
+<li>&#39;+++&#39; new connection</li>
+<li>&#39;---&#39; connection closed</li>
+<li>&#39;&lt; 1234&#39; number of bytes proxied to the remote</li>
+<li>&#39;&gt; 1234&#39; number of bytes proxied back from the remote</li>
+</ul>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">ConsoleReporter</span>
+    <span class="k">def</span> <span class="nf">initialize</span>
+      <span class="vi">@count</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="vi">@mutex</span> <span class="o">=</span> <span class="no">Mutex</span><span class="p">.</span><span class="nf">new</span>
+      <span class="vi">@connections</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">start_connection</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+      <span class="vi">@mutex</span><span class="p">.</span><span class="nf">synchronize</span> <span class="p">{</span> <span class="vi">@connections</span><span class="p">[</span><span class="n">conn</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="vi">@count</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">)</span> <span class="p">}</span>
+      <span class="nb">puts</span> <span class="s2">"</span><span class="si">#{</span><span class="vi">@connections</span><span class="p">[</span><span class="n">conn</span><span class="p">]</span><span class="si">}</span><span class="s2">. +++"</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">end_connection</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+      <span class="nb">puts</span> <span class="s2">"</span><span class="si">#{</span><span class="vi">@connections</span><span class="p">[</span><span class="n">conn</span><span class="p">]</span><span class="si">}</span><span class="s2">. ---"</span>
+      <span class="vi">@connections</span><span class="p">.</span><span class="nf">delete</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">data_in</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+      <span class="nb">puts</span> <span class="s2">"</span><span class="si">#{</span><span class="vi">@connections</span><span class="p">[</span><span class="n">conn</span><span class="p">]</span><span class="si">}</span><span class="s2">. &lt; </span><span class="si">#{</span><span class="n">data</span><span class="p">.</span><span class="nf">size</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">data_out</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+      <span class="nb">puts</span> <span class="s2">"</span><span class="si">#{</span><span class="vi">@connections</span><span class="p">[</span><span class="n">conn</span><span class="p">]</span><span class="si">}</span><span class="s2">. &gt; </span><span class="si">#{</span><span class="n">data</span><span class="p">.</span><span class="nf">size</span><span class="si">}</span><span class="s2">"</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">main_loop_error</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
+      <span class="no">STDERR</span><span class="p">.</span><span class="nf">puts</span> <span class="s2">"</span><span class="si">#{</span><span class="vi">@connections</span><span class="p">[</span><span class="n">conn</span><span class="p">]</span><span class="si">}</span><span class="s2">. </span><span class="si">#{</span><span class="n">exc</span><span class="p">.</span><span class="nf">class</span><span class="si">}</span><span class="s2"> </span><span class="si">#{</span><span class="n">exc</span><span class="p">.</span><span class="nf">message</span><span class="si">}</span><span class="s2">"</span>
+      <span class="no">STDERR</span><span class="p">.</span><span class="nf">puts</span> <span class="n">exc</span><span class="p">.</span><span class="nf">backtrace</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-Server_Listeners">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-Server_Listeners">&#182;</a>
+        </div>
+        <h2>Server Listeners</h2>
+
+<p>These can be attached to a server to add extra behavior</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre><span class="k">module</span> <span class="nn">Proxi</span></pre></div>
+      </div>
+    </li>
+    <li id="section-23">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-23">&#182;</a>
+        </div>
+        <p>Log all incoming and outgoing traffic to files under <code>/tmp</code></p>
+
+<p>For example:</p>
+
+<pre><code> Proxi.tcp_server(...).subscribe(RequestResponseLogging.new).call
+</code></pre>
+
+<p>The in and outgoing traffic will be captured per connection in
+<code>/tmp/proxi.1.in</code> and <code>/tmp/proxi.1.out</code>; <code>/tmp/proxi.2.in</code>, etc.</p>
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">RequestResponseLogging</span>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="ss">dir: </span><span class="no">Dir</span><span class="p">.</span><span class="nf">tmpdir</span><span class="p">,</span> <span class="ss">name: </span><span class="s2">"proxi"</span><span class="p">)</span>
+      <span class="vi">@dir</span> <span class="o">=</span> <span class="n">dir</span>
+      <span class="vi">@name</span> <span class="o">=</span> <span class="nb">name</span>
+      <span class="vi">@count</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="vi">@mutex</span> <span class="o">=</span> <span class="no">Mutex</span><span class="p">.</span><span class="nf">new</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">new_connection</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+      <span class="n">count</span> <span class="o">=</span> <span class="vi">@mutex</span><span class="p">.</span><span class="nf">synchronize</span> <span class="p">{</span> <span class="vi">@count</span> <span class="o">+=</span> <span class="mi">1</span> <span class="p">}</span>
+      <span class="n">in_fd</span> <span class="o">=</span> <span class="no">File</span><span class="p">.</span><span class="nf">open</span><span class="p">(</span><span class="n">log_name</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="s2">"in"</span><span class="p">),</span> <span class="s1">'w'</span><span class="p">)</span>
+      <span class="n">out_fd</span> <span class="o">=</span> <span class="no">File</span><span class="p">.</span><span class="nf">open</span><span class="p">(</span><span class="n">log_name</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="s2">"out"</span><span class="p">),</span> <span class="s1">'w'</span><span class="p">)</span>
+
+      <span class="n">connection</span>
+        <span class="p">.</span><span class="nf">on</span><span class="p">(</span><span class="ss">:data_in</span><span class="p">)</span> <span class="p">{</span> <span class="o">|</span><span class="n">_</span><span class="p">,</span> <span class="n">data</span><span class="o">|</span> <span class="n">in_fd</span><span class="p">.</span><span class="nf">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">;</span> <span class="n">in_fd</span><span class="p">.</span><span class="nf">flush</span> <span class="p">}</span>
+        <span class="p">.</span><span class="nf">on</span><span class="p">(</span><span class="ss">:data_out</span><span class="p">)</span> <span class="p">{</span> <span class="o">|</span><span class="n">_</span><span class="p">,</span> <span class="n">data</span><span class="o">|</span> <span class="n">out_fd</span><span class="p">.</span><span class="nf">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="p">;</span> <span class="n">out_fd</span><span class="p">.</span><span class="nf">flush</span> <span class="p">}</span>
+        <span class="p">.</span><span class="nf">on</span><span class="p">(</span><span class="ss">:end_connection</span><span class="p">)</span> <span class="p">{</span> <span class="n">in_fd</span><span class="p">.</span><span class="nf">close</span> <span class="p">;</span> <span class="n">out_fd</span><span class="p">.</span><span class="nf">close</span> <span class="p">}</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">log_name</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+      <span class="s1">'%s/%s.%d.%s'</span> <span class="o">%</span> <span class="p">[</span><span class="vi">@dir</span><span class="p">,</span> <span class="vi">@name</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">suffix</span><span class="p">]</span>
+    <span class="k">end</span>
+  <span class="k">end</span></pre></div>
+      </div>
+    </li>
+    <li id="section-24">
+      <div class="annotation">
+        <div class="pilwrap">
+          <a class="pilcrow" href="#section-24">&#182;</a>
+        </div>
+        <p>Wait before handing back data coming from the remote, this simulates a slow
+connection, and can be used to test timeouts.</p>
+
+      </div>
+      <div class="content">
+        <div class='highlight'><pre>  <span class="k">class</span> <span class="nc">SlowDown</span>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="ss">wait_seconds: </span><span class="mi">5</span><span class="p">)</span>
+      <span class="vi">@wait_seconds</span> <span class="o">=</span> <span class="n">wait_seconds</span>
+    <span class="k">end</span>
+
+    <span class="k">def</span> <span class="nf">new_connection</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+      <span class="n">connection</span><span class="p">.</span><span class="nf">on</span><span class="p">(</span><span class="ss">:data_out</span><span class="p">)</span> <span class="p">{</span> <span class="nb">sleep</span> <span class="vi">@wait_seconds</span> <span class="p">}</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span></pre></div>
+      </div>
+    </li>
+  </ul>
+  </div>
+</body>
+</html>
