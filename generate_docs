@@ -1,0 +1,7 @@
+cat lib/proxi.rb lib/proxi/server.rb lib/proxi/connection.rb lib/proxi/socket_factory.rb lib/proxi/reporting.rb > doc/proxi
+
+# Use https://github.com/Billiam/rocco , seems to at least mostly still work
+
+RUBYOPT=-I~/github/rocco/lib ~/github/rocco/bin/rocco --docblocks doc/proxi
+
+firefox-dev doc/proxi.html

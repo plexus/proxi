@@ -1,18 +1,18 @@
 module Proxi
 
-  # A Proxi::Server accepts TCP requests, and forwards them, by creating an
-  # outbound connection and forward traffic in both directions.
+  # `Proxi::Server` accepts TCP requests, and forwards them, by creating an
+  # outbound connection and forwarding traffic in both directions.
   #
   # The destination of the outbound connection, and the forwarding of data, is
-  # handled by a Proxi::Connection, created by a factory object, which can be a
+  # handled by a `Proxi::Connection`, created by a factory object, which can be a
   # lambda.
   #
   # Start listening for connections by calling #call.
   #
-  # Proxi::Server broadcasts the following events:
+  # `Proxi::Server` broadcasts the following events:
   #
-  # - new_connection(Proxi::Connection)
-  # - dead_connection(Proxi::Connection)
+  # - `new_connection(Proxi::Connection)`
+  # - `dead_connection(Proxi::Connection)`
   class Server
     include Wisper::Publisher
 
