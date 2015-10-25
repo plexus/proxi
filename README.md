@@ -6,6 +6,7 @@ This is intended as a development tool, for when you want to see exactly what
 goes over the wire, want to log or save specific requests, responses, simulate
 timeouts or slow connections, etc.
 
+For documentation see the [annotated source code](http://plexus.github.io/proxi/).
 
 ## License
 
