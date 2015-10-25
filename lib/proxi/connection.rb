@@ -1,25 +1,28 @@
+# ## Proxi::Connection
+#
 module Proxi
 
-  # Public: A bidirectional pipe between two sockets
+  # A `Connection` is a bidirectional pipe between two sockets.
   #
-  # A Proxi::Socket takes an incoming request, and will initiate an outgoing
-  # request, after which it forwards all traffic in both directions.
+  # The proxy server hands it the socket for the incoming request from, and
+  # `Connection` then initiates an outgoing request, after which it forwards all
+  # traffic in both directions.
   #
-  # Creating the outgoing request is delegated to a Proxi::SocketFactory. The
-  # reason being that the type of socket can vary (TCPSocket, SSLSocket), or
+  # Creating the outgoing request is delegated to a `Proxi::SocketFactory`. The
+  # reason being that the type of socket can vary (`TCPSocket`, `SSLSocket`), or
   # there might be some logic involved to dispatch to the correct host, e.g.
-  # based on the HTTP Host header (cfr. Proxi::HTTPHostSocketFactory).
+  # based on the HTTP Host header (cfr. `Proxi::HTTPHostSocketFactory`).
   #
   # A socket factory can subscribe to events to make informed decision, e.g. to
   # inspect incoming data for HTTP headers.
   #
   # Proxi::Connection broadcasts the following events:
   #
-  # - start_connection(Proxi::Connection)
-  # - end_connection(Proxi::Connection)
-  # - main_loop_error(Proxi::Connection, Exception)
-  # - data_in(Proxi::Connection, Array)
-  # - data_out(Proxi::Connection, Array)
+  # - `start_connection(Proxi::Connection)`
+  # - `end_connection(Proxi::Connection)`
+  # - `main_loop_error(Proxi::Connection, Exception)`
+  # - `data_in(Proxi::Connection, Array)`
+  # - `data_out(Proxi::Connection, Array)`
   class Connection
     include Wisper::Publisher
 
@@ -31,22 +34,18 @@ module Proxi
       @max_block_size = max_block_size
     end
 
-    # Internal: start the connection handler thread
-    #
-    # Called by the server, this spawns a new Thread that handles the forwarding
-    # of data.
+    # `Connection#call` starts the connection handler thread. This is called by
+    # the server, and spawns a new Thread that handles the forwarding of data.
     def call
       broadcast(:start_connection, self)
       @thread = Thread.new { proxy_loop }
       self
     end
 
-    # Internal: Is the connection handling thread still alive?
     def alive?
       thread.alive?
     end
 
-    # Internal: Join the connection handling thread
     def join_thread
       thread.join
     end

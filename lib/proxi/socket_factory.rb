@@ -1,5 +1,9 @@
+# ## Socket factories
+#
 module Proxi
-  # Public: Create outgoing TCP sockets
+  # ### TCPSocketFactory
+  #
+  # This is the most vanilla type of socket factory.
   #
   # Suitable when all requests need to be forwarded to the same host and port.
   class TCPSocketFactory
@@ -12,13 +16,13 @@ module Proxi
     end
   end
 
-  # Public: Create outgoing SSL connections
+  # ### SSLSocketFactory
   #
   # This will set up an encrypted (SSL, https) connection to the target host.
   # This way the proxy server communicates *unencrypted* locally, but
   # encrypts/decrypts communication with the remote host.
   #
-  # If you want to forward SSL connections as-is, use a TCPSocketFactory, in
+  # If you want to forward SSL connections as-is, use a `TCPSocketFactory`, in
   # that case however you won't be able to inspect any data passing through,
   # since it will be encrypted.
   class SSLSocketFactory < TCPSocketFactory
@@ -27,39 +31,26 @@ module Proxi
     end
   end
 
-  # Public: Dispatch HTTP traffic to multiple hosts
+  # ### HTTPHostSocketFactory
   #
-  # Forward traffic to a specific host based on the HTTP Host header, and a
-  # mapping of hosts to ip addresses.
+  # Dispatches HTTP traffic to multiple hosts, based on the HTTP `Host:` header.
   #
   # HTTPHostSocketFactory expects to receive data events from the connection, so
-  # make sure you subscribe it to connection events.
+  # make sure you subscribe it to connection events. (see `Proxi.http_proxy` for
+  # an example).
   #
-  # To use this effectively, configure your local /etc/hosts so the relevant
+  # To use this effectively, configure your local `/etc/hosts` so the relevant
   # domains point to localhost. That way the proxy will be able to intercept
   # them.
   #
-  # Single use only! Create a new instance for each Proxi::Connection.
-  #
-  # Examples
-  #
-  #    mapping = {'foo.example.com' => '10.10.10.1:8080'}
-  #
-  #    Proxi::Server.new(
-  #      '80',
-  #      ->(in_socket) {
-  #        socket_factory = HTTPHostSocketFactory.new(mapping)
-  #        connection = Proxi::Connection.new(in_socket, socket_factory)
-  #        connection.subscribe(socket_factory, on: :data_in)
-  #      }
-  #    ).call
+  # This class is single use only! Create a new instance for each `Proxi::Connection`.
   class HTTPHostSocketFactory
 
-    # Public: Initialize a HTTPHostSocketFactory
+    # Initialize a HTTPHostSocketFactory
     #
-    # host_mapping - A Hash mapping hostnames to IP addresses, and, optionally, ports
+    # `host_mapping` - A Hash mapping hostnames to IP addresses, and, optionally, ports
     #
-    # Examples
+    # For example:
     #
     #     HTTPHostSocketFactory.new(
     #       'foo.example.com' => '10.10.10.1:8080',
@@ -69,7 +60,12 @@ module Proxi
       @host_mapping = host_mapping
     end
 
-    # Internal: receive data event from the connection
+    # This is an event listener, it will be broadcast by the `Connection` whenever
+    # it gets new request data. We capture the first packet, assuming it
+    # contains the HTTP headers.
+    #
+    # `Connection` will only request an outgoing socket from us (call `#call`)
+    # after it received the initial request payload.
     def data_in(connection, data)
       @first_packet ||= data
     end

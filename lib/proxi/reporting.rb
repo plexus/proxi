@@ -1,7 +1,12 @@
+# ### Reporting
+#
+# Proxi's server and connection classes don't have any logging or UI
+# capabilities built in, but they broadcast events that we can listen to to perform these tasks.
+
 module Proxi
-  # Public: Very basic reporter to see what's happening
+  # This is a very basic console reporter to see what's happening
   #
-  # Subscribe to connection events, this will output something like this
+  # Subscribe to connection events, and you will see output that looks like this
   #
   #     1. +++
   #     1. < 91
@@ -13,7 +18,7 @@ module Proxi
   #     1. > 3422
   #     1. ---
   #
-  # Each connection gets a unique incremental number assigned, what follows means:
+  # Each connection gets a unique incremental number assigned, followed by:
   #
   # - '+++' new connection
   # - '---' connection closed

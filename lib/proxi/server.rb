@@ -1,3 +1,5 @@
+# ## Proxi::Server
+#
 module Proxi
 
   # `Proxi::Server` accepts TCP requests, and forwards them, by creating an
@@ -25,11 +27,9 @@ module Proxi
     # max_connections    - The maximum amount of parallel connections to handle
     #                      at once
     def initialize(listen_port, connection_factory, max_connections: 5)
+      @listen_port = listen_port
       @connection_factory = connection_factory
       @max_connections = 5
-
-      @server = TCPServer.new('localhost', listen_port)
-
       @connections = []
     end
 
@@ -37,6 +37,8 @@ module Proxi
     #
     # Start accepting and forwarding requests
     def call
+      @server = TCPServer.new('localhost', @listen_port)
+
       until @server.closed?
         in_socket = @server.accept
         connection = @connection_factory.call(in_socket)
@@ -53,6 +55,8 @@ module Proxi
           reap_connections
         end
       end
+    ensure
+      close unless @server.closed?
     end
 
     # Public: close the TCP server socket
