@@ -1,6 +1,6 @@
 Gem::Specification.new do |gem|
   gem.name        = 'proxi'
-  gem.version     = '0.1'
+  gem.version     = '1.0'
   gem.authors     = [ 'Arne Brasseur' ]
   gem.email       = [ 'arne@arnebrasseur.net' ]
   gem.description = 'TCP and HTTP proxy scripts'
