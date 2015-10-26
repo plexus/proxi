@@ -60,14 +60,11 @@ module Proxi
       begin
         handle_socket(in_socket)
         loop do
-          begin
-            ready_sockets.each do |socket|
-              handle_socket(socket)
-            end
-          rescue EOFError
-            break
+          ready_sockets.each do |socket|
+            handle_socket(socket)
           end
         end
+      rescue EOFError
       rescue Object => e
         broadcast(:main_loop_error, self, e)
         raise

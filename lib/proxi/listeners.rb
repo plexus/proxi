@@ -47,4 +47,5 @@ module Proxi
       connection.on(:data_out) { sleep @wait_seconds }
     end
   end
+
 end

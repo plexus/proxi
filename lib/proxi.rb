@@ -1,6 +1,8 @@
 require 'socket'
 require 'thread'
 require 'openssl'
+require 'zlib'
+require 'stringio'
 
 require 'wisper'
 
@@ -72,7 +74,7 @@ module Proxi
       Connection
         .new(in_socket, socket_factory)
         .subscribe(socket_factory, on: :data_in)
-        .subscribe(reporter)
+        #.subscribe(reporter)
     end
 
     Server.new(local_port, connection_factory)
@@ -84,3 +86,4 @@ require_relative 'proxi/connection'
 require_relative 'proxi/socket_factory'
 require_relative 'proxi/reporting'
 require_relative 'proxi/listeners'
+require_relative 'proxi/http'

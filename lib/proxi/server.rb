@@ -56,7 +56,7 @@ module Proxi
         end
       end
     ensure
-      close unless @server.closed?
+      close
     end
 
     # Public: close the TCP server socket
@@ -65,7 +65,7 @@ module Proxi
     # likely be blocking on TCPServer#accept, and the server port will stay open
     # until it has accepted one final request.
     def close
-      @server.close
+      @server.close if @server && !@server.closed?
     end
 
     private

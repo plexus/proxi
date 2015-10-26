@@ -1,4 +1,4 @@
-cat lib/proxi.rb lib/proxi/server.rb lib/proxi/connection.rb lib/proxi/socket_factory.rb lib/proxi/reporting.rb lib/proxi/listeners.rb > doc/proxi
+cat lib/proxi.rb lib/proxi/server.rb lib/proxi/connection.rb lib/proxi/socket_factory.rb lib/proxi/reporting.rb lib/proxi/listeners.rb lib/proxi/http.rb > doc/proxi
 
 # Use https://github.com/Billiam/rocco , seems to at least mostly still work
 

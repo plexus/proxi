@@ -71,7 +71,7 @@ module Proxi
     end
 
     def call
-      host, port = @host_to_ip.fetch(headers["host"]).split(':')
+      host, port = @host_mapping.fetch(headers["host"]).split(':')
       port ||= 80
       TCPSocket.new(host, port.to_i)
     end

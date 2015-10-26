@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    proxi (0.1)
+    proxi (1.0)
       wisper (> 0)
 
 GEM
@@ -29,3 +29,6 @@ PLATFORMS
 DEPENDENCIES
   proxi!
   rspec (~> 3.0)
+
+BUNDLED WITH
+   1.10.6
